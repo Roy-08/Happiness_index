@@ -353,7 +353,7 @@ ${/* Only replaced localhost:3000 via .replace() above */ ""}
 
         <!-- SIGNATURE IMAGE -->
         <img src="https://happiness-index.vercel.app/sign.png" 
-            style="width:130px; height:auto; display:block; margin:0 auto; margin-top:10px;" />
+            style="width:180px; height:auto; display:block; margin:0 auto; margin-top:10px;" />
 
         <!-- Happiness Coach -->
         <p style="
@@ -443,3 +443,4 @@ ${/* Only replaced localhost:3000 via .replace() above */ ""}
   </html>
 `;
 }
+
