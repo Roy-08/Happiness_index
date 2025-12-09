@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 
 export default function RegisterPage() {
   const [countries, setCountries] = useState([]);
-  const [allCountries, setAllCountries] = useState([]); // <- full list for search
+  const [allCountries, setAllCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -37,7 +37,7 @@ export default function RegisterPage() {
           .sort((a, b) => a.name.localeCompare(b.name));
 
         setCountries(sorted);
-        setAllCountries(sorted); // <- store original list
+        setAllCountries(sorted);
       })
       .catch(console.error);
   }, []);
@@ -143,70 +143,63 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* COUNTRY DROPDOWN WITH SEARCH */}
+          {/* COUNTRY DROPDOWN WITH INLINE SEARCH */}
           <div className="relative w-full" ref={dropdownRef}>
             <label className="text-gray-500 block mb-1">Country</label>
 
-            <button
-              type="button"
-              className="w-full pb-2 sm:pb-3 border-b border-[#00BBD4] text-black bg-transparent text-left flex items-center justify-between focus:outline-none"
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-            >
-              {selectedCountry ? (
-                <div className="flex items-center gap-2 text-black">
-                  <img
-                    src={selectedCountry.flag}
-                    alt={selectedCountry.name}
-                    className="w-5 h-3 sm:w-6 sm:h-4 object-cover"
-                  />
-                  <span>{selectedCountry.name}</span>
-                </div>
-              ) : (
-                "Select Country"
+            <div className="relative">
+              {selectedCountry && (
+                <img
+                  src={selectedCountry.flag}
+                  alt={selectedCountry.name}
+                  className="w-5 h-3 sm:w-6 sm:h-4 object-cover absolute left-2 top-3 -translate-y-1/2"
+                />
               )}
-              <span>{dropdownOpen ? "▲" : "▼"}</span>
-            </button>
+              <input
+                type="text"
+                placeholder="Select Country"
+                value={selectedCountry?.name || form.country}
+                onClick={() => setDropdownOpen(true)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm({ ...form, country: val });
+                  setDropdownOpen(true);
+                  setSelectedCountry(null);
+                  const filtered = allCountries.filter((c) =>
+                    c.name.toLowerCase().includes(val.toLowerCase())
+                  );
+                  setCountries(filtered);
+                }}
+                className={`w-full pb-2 sm:pb-3 border-b border-[#00BBD4] text-black bg-transparent focus:outline-none ${
+                  selectedCountry ? "pl-10" : "pl-2"
+                }`}
+                required
+              />
+            </div>
 
             {dropdownOpen && (
-              <div className="absolute z-20 w-full bg-white border border-gray-300 mt-1 max-h-72 overflow-hidden rounded-lg shadow-lg">
-
-                {/* SEARCH INPUT */}
-                <div className="p-2 border-b border-gray-300">
-                  <input
-                    type="text"
-                    placeholder="Search country..."
-                    onChange={(e) => {
-                      const val = e.target.value.toLowerCase();
-                      const filtered = allCountries.filter((c) =>
-                        c.name.toLowerCase().includes(val)
-                      );
-                      setCountries(filtered);
+              <div className="absolute z-20 w-full bg-white border border-gray-300 mt-1 max-h-72 overflow-y-auto rounded-lg shadow-lg">
+                {countries.map((c) => (
+                  <div
+                    key={c.code}
+                    className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-blue-100 text-black"
+                    onClick={() => {
+                      setSelectedCountry(c);
+                      setForm({ ...form, country: c.name });
+                      setDropdownOpen(false);
                     }}
-                    className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none text-black"
-                  />
-                </div>
-
-                {/* LIST */}
-                <div className="max-h-60 overflow-y-auto">
-                  {countries.map((c) => (
-                    <div
-                      key={c.code}
-                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-blue-100 text-black"
-                      onClick={() => {
-                        setSelectedCountry(c);
-                        setForm({ ...form, country: c.name });
-                        setDropdownOpen(false);
-                      }}
-                    >
-                      <img
-                        src={c.flag}
-                        alt={c.name}
-                        className="w-5 h-3 sm:w-6 sm:h-4 object-cover"
-                      />
-                      <span>{c.name}</span>
-                    </div>
-                  ))}
-                </div>
+                  >
+                    <img
+                      src={c.flag}
+                      alt={c.name}
+                      className="w-5 h-3 sm:w-6 sm:h-4 object-cover"
+                    />
+                    <span>{c.name}</span>
+                  </div>
+                ))}
+                {countries.length === 0 && (
+                  <div className="px-3 py-2 text-gray-500">No country found</div>
+                )}
               </div>
             )}
           </div>
