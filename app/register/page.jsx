@@ -5,9 +5,12 @@ import toast from "react-hot-toast";
 
 export default function RegisterPage() {
   const [countries, setCountries] = useState([]);
+  const [allCountries, setAllCountries] = useState([]); // <- full list for search
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -18,6 +21,9 @@ export default function RegisterPage() {
     occupation: "",
   });
 
+  // ------------------------------------------
+  // FETCH COUNTRIES
+  // ------------------------------------------
   useEffect(() => {
     fetch("https://restcountries.com/v3.1/all?fields=cca2,name,flags")
       .then((res) => res.json())
@@ -29,10 +35,16 @@ export default function RegisterPage() {
             flag: c.flags?.png || "",
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
+
         setCountries(sorted);
+        setAllCountries(sorted); // <- store original list
       })
       .catch(console.error);
   }, []);
+
+  // ------------------------------------------
+  // CLOSE DROPDOWN WHEN CLICKED OUTSIDE
+  // ------------------------------------------
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -43,50 +55,53 @@ export default function RegisterPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
- async function handleSubmit(e) {
-  e.preventDefault();
+  // ------------------------------------------
+  // SUBMIT FORM
+  // ------------------------------------------
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      toast.error("Registration failed: " + data.message);
-      return;
+      if (!res.ok) {
+        setLoading(false);
+        toast.error("Registration failed: " + data.message);
+        return;
+      }
+
+      toast.success("Registration Successful!");
+
+      localStorage.setItem("registered_email", form.email);
+      localStorage.setItem("registered_name", form.name);
+
+      setForm({
+        name: "",
+        email: "",
+        dob: "",
+        country: "",
+        contact: "",
+        occupation: "",
+      });
+
+      setSelectedCountry(null);
+
+      setTimeout(() => {
+        window.location.href = "/questions";
+      }, 800);
+    } catch (err) {
+      console.error(err);
+      toast.error("Registration failed. Check console for details.");
+      setLoading(false);
     }
-
-    toast.success("Registration Successful!");
-
-    // Save to localStorage
-    localStorage.setItem("registered_email", form.email);
-    localStorage.setItem("registered_name", form.name); // <-- FIX
-
-    setForm({
-      name: "",
-      email: "",
-      dob: "",
-      country: "",
-      contact: "",
-      occupation: "",
-    });
-
-    setSelectedCountry(null);
-
-    setTimeout(() => {
-      window.location.href = "/questions";
-    }, 800);
-
-  } catch (err) {
-    console.error(err);
-    toast.error("Registration failed. Check console for details.");
   }
-}
-
 
   return (
     <div className="w-screen min-h-screen flex items-center justify-center bg-linear-to-br from-[#16e0c3] via-[#0bc5ea] to-[#009dff] p-4">
@@ -96,6 +111,7 @@ export default function RegisterPage() {
         </h1>
 
         <form className="space-y-5 sm:space-y-7" onSubmit={handleSubmit}>
+          {/* NAME */}
           <input
             type="text"
             placeholder="Full Name"
@@ -105,6 +121,7 @@ export default function RegisterPage() {
             required
           />
 
+          {/* EMAIL */}
           <input
             type="email"
             placeholder="Email address"
@@ -114,6 +131,7 @@ export default function RegisterPage() {
             required
           />
 
+          {/* DOB */}
           <div className="w-full pb-2 sm:pb-3">
             <span className="text-gray-500 block mb-1">Date Of Birth</span>
             <input
@@ -125,9 +143,10 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Country Dropdown */}
+          {/* COUNTRY DROPDOWN WITH SEARCH */}
           <div className="relative w-full" ref={dropdownRef}>
             <label className="text-gray-500 block mb-1">Country</label>
+
             <button
               type="button"
               className="w-full pb-2 sm:pb-3 border-b border-[#00BBD4] text-black bg-transparent text-left flex items-center justify-between focus:outline-none"
@@ -149,29 +168,50 @@ export default function RegisterPage() {
             </button>
 
             {dropdownOpen && (
-              <div className="absolute z-10 w-full bg-white border border-gray-300 mt-1 max-h-60 overflow-y-auto rounded-lg shadow-lg">
-                {countries.map((c) => (
-                  <div
-                    key={c.code}
-                    className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-blue-100 text-black"
-                    onClick={() => {
-                      setSelectedCountry(c);
-                      setForm({ ...form, country: c.name });
-                      setDropdownOpen(false);
+              <div className="absolute z-20 w-full bg-white border border-gray-300 mt-1 max-h-72 overflow-hidden rounded-lg shadow-lg">
+
+                {/* SEARCH INPUT */}
+                <div className="p-2 border-b border-gray-300">
+                  <input
+                    type="text"
+                    placeholder="Search country..."
+                    onChange={(e) => {
+                      const val = e.target.value.toLowerCase();
+                      const filtered = allCountries.filter((c) =>
+                        c.name.toLowerCase().includes(val)
+                      );
+                      setCountries(filtered);
                     }}
-                  >
-                    <img
-                      src={c.flag}
-                      alt={c.name}
-                      className="w-5 h-3 sm:w-6 sm:h-4 object-cover"
-                    />
-                    <span>{c.name}</span>
-                  </div>
-                ))}
+                    className="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none text-black"
+                  />
+                </div>
+
+                {/* LIST */}
+                <div className="max-h-60 overflow-y-auto">
+                  {countries.map((c) => (
+                    <div
+                      key={c.code}
+                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-blue-100 text-black"
+                      onClick={() => {
+                        setSelectedCountry(c);
+                        setForm({ ...form, country: c.name });
+                        setDropdownOpen(false);
+                      }}
+                    >
+                      <img
+                        src={c.flag}
+                        alt={c.name}
+                        className="w-5 h-3 sm:w-6 sm:h-4 object-cover"
+                      />
+                      <span>{c.name}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
+          {/* CONTACT */}
           <input
             type="text"
             placeholder="Contact Number"
@@ -181,6 +221,7 @@ export default function RegisterPage() {
             required
           />
 
+          {/* OCCUPATION */}
           <input
             type="text"
             placeholder="Occupation"
@@ -190,11 +231,24 @@ export default function RegisterPage() {
             required
           />
 
+          {/* SUBMIT BUTTON */}
           <button
             type="submit"
-            className="w-full py-3 sm:py-4 rounded-md font-bold text-lg sm:text-xl text-white bg-linear-to-r from-[#00E0FF] via-[#00B2FF] to-[#006CFF] shadow-lg hover:opacity-95 transition"
+            disabled={loading}
+            className={`w-full py-3 sm:py-4 rounded-md font-bold text-lg sm:text-xl text-white 
+              bg-linear-to-r from-[#00E0FF] via-[#00B2FF] to-[#006CFF] shadow-lg
+              transition relative overflow-hidden
+              ${loading ? "opacity-70 cursor-not-allowed" : "hover:opacity-95"}
+            `}
           >
-            REGISTER
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <span className="animate-pulse">Processing…</span>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              "REGISTER"
+            )}
           </button>
         </form>
       </div>
