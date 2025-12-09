@@ -337,7 +337,7 @@
         </p>
 
         <!-- SIGNATURE IMAGE -->
-        <img src="http://localhost:3000/sign.png" 
+        <img src="https://happiness-index.vercel.app/sign.png" 
             style="width:130px; height:auto; display:block; margin:0 auto; margin-top:10px;" />
 
         <!-- Happiness Coach -->
@@ -429,3 +429,4 @@
 
     `;
   }
+
