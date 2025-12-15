@@ -1,21 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+
 export default function QuestionsPage() {
   const [sections, setSections] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [popup, setPopup] = useState({ open: false, message: "" });
-const router = useRouter();
+  const router = useRouter();
 
   const QUESTIONS_PER_PAGE = 2;
   const [currentPage, setCurrentPage] = useState(0);
 
+  /* ---------------- FETCH FORM (CACHED) ---------------- */
   useEffect(() => {
     async function loadForm() {
-      const res = await fetch("/api/form/latest");
+      const res = await fetch("/api/form/latest", {
+        next: { revalidate: 60 }, // 🔥 CACHE
+      });
       const data = await res.json();
 
       setSections([
@@ -31,8 +34,9 @@ const router = useRouter();
     loadForm();
   }, []);
 
+  /* ---------------- FAST SCROLL ---------------- */
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0 });
   }, [currentPage]);
 
   function selectOption(qIndex, oIndex) {
@@ -50,21 +54,14 @@ const router = useRouter();
     setPopup({ open: false, message: "" });
   }
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center text-yellow-500 text-xl">
-        Loading…
-      </div>
-    );
-  }
-
   const section = sections[0];
-  const totalQuestions = section.questions.length;
+  const totalQuestions = section?.questions?.length || 0;
   const totalPages = Math.ceil(totalQuestions / QUESTIONS_PER_PAGE);
 
   const startIndex = currentPage * QUESTIONS_PER_PAGE;
   const endIndex = startIndex + QUESTIONS_PER_PAGE;
-  const currentQuestions = section.questions.slice(startIndex, endIndex);
+  const currentQuestions =
+    section?.questions?.slice(startIndex, endIndex) || [];
 
   function validateCurrentPage() {
     return currentQuestions.every((_, idx) => {
@@ -73,20 +70,18 @@ const router = useRouter();
     });
   }
 
- function goNext() {
-  if (!validateCurrentPage()) {
-    showPopup("Please answer all questions on this page.");
-    return;
-  }
+  function goNext() {
+    if (!validateCurrentPage()) {
+      showPopup("Please answer all questions on this page.");
+      return;
+    }
 
-  if (currentPage < totalPages - 1) {
-    setCurrentPage((p) => p + 1);
-  } else {
-    // LAST PAGE → GO TO REGISTRATION
-     router.push("/register");
+    if (currentPage < totalPages - 1) {
+      setCurrentPage((p) => p + 1);
+    } else {
+      router.push("/register");
+    }
   }
-}
-
 
   function goBack() {
     if (currentPage > 0) {
@@ -94,13 +89,13 @@ const router = useRouter();
     }
   }
 
- 
-
-  const isLastPage = currentPage === totalPages - 1;
-const answeredCount = Object.keys(answers).length;
-const progressPercent = Math.round(
-  (answeredCount / totalQuestions) * 100
-);
+  /* ---------------- MEMOIZED PROGRESS ---------------- */
+  const progressPercent = useMemo(() => {
+    if (!totalQuestions) return 0;
+    return Math.round(
+      (Object.keys(answers).length / totalQuestions) * 100
+    );
+  }, [answers, totalQuestions]);
 
   return (
     <div className="min-h-screen w-full p-3 md:p-6 bg-[#FFF7E6] flex flex-col items-center">
@@ -131,117 +126,114 @@ const progressPercent = Math.round(
 
       {/* SECTION TITLE */}
       <div className="w-full max-w-xl mb-4 p-2 rounded-xl bg-yellow-500 text-black font-bold text-sm text-center shadow-sm">
-        {section.sectionName}
+        {section?.sectionName || "Assessment"}
       </div>
-{/* PREMIUM MINIMAL PROGRESS BAR */}
-<div className="w-full max-w-xl mb-6 relative">
-  <div className="w-full h-4 rounded-full bg-gray-300 overflow-hidden shadow-inner">
-    <div
-      className="h-4 rounded-full transition-all duration-700 ease-in-out"
-      style={{
-        width: `${progressPercent}%`,
-        backgroundColor: "#FBBF24",
-        boxShadow: "0 2px 6px rgba(251, 191, 36, 0.5)",
-      }}
-    ></div>
-  </div>
 
-  <div className="absolute top-0 left-0 w-full h-4 pointer-events-none rounded-full">
-    <div className="h-4 w-full bg-white/20 rounded-full"></div>
-  </div>
+      {/* PROGRESS BAR */}
+      <div className="w-full max-w-xl mb-6 relative">
+        <div className="w-full h-4 rounded-full bg-gray-300 overflow-hidden shadow-inner">
+          <div
+            className="h-4 rounded-full transition-all duration-500"
+            style={{
+              width: `${progressPercent}%`,
+              backgroundColor: "#FBBF24",
+            }}
+          />
+        </div>
+        <div
+          className="absolute -top-5 transform -translate-x-1/2 px-2 py-1 rounded-full bg-gray-800 text-white text-xs"
+          style={{ left: `${progressPercent}%` }}
+        >
+          {progressPercent}%
+        </div>
+      </div>
 
-  <div
-    className="absolute -top-5 transform -translate-x-1/2 px-2 py-1 rounded-full bg-gray-800 text-white text-xs font-medium shadow-sm"
-    style={{ left: `${progressPercent}%` }}
-  >
-    {progressPercent}%
-  </div>
-</div>
-
-      {/* QUESTIONS (2 PER PAGE) */}
+      {/* QUESTIONS */}
       <div className="w-full max-w-xl space-y-3">
-        {currentQuestions.map((q, idx) => {
-          const qIndex = startIndex + idx;
-          return (
+        {loading &&
+          [1, 2].map((i) => (
             <div
-              key={qIndex}
-              className="w-full p-3 rounded-xl bg-white border-2 border-yellow-400 shadow-sm"
-            >
-              <div className="mb-2">
-                <div className="text-base font-bold text-yellow-600 mb-1">
-                  Q{qIndex + 1}/{totalQuestions}
-                </div>
-                <div className="text-sm font-semibold text-black leading-relaxed">
-                  {q.text}
-                </div>
-                {q.hindiText && (
-                  <div className="text-xs text-gray-700 mt-1 pl-2 border-l-4 border-yellow-400">
-                    {q.hindiText}
-                  </div>
-                )}
-              </div>
+              key={i}
+              className="h-32 rounded-xl bg-white border border-yellow-200 animate-pulse"
+            />
+          ))}
 
-              <div className="space-y-2">
-                {q.options.map((op, oIndex) => {
-                  const selected = answers[qIndex] === oIndex;
-                  return (
-                    <label
-                      key={oIndex}
-                      className={`flex items-start gap-2 p-3 rounded-xl cursor-pointer border transition-all ${
-                        selected
-                          ? "border-yellow-500 bg-yellow-100"
-                          : "border-gray-300 bg-white"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={`q-${qIndex}`}
-                        checked={selected}
-                        onChange={() => selectOption(qIndex, oIndex)}
-                        className="w-4 h-4 accent-yellow-500 mt-1"
-                      />
-                      <span className="flex flex-col">
-                        <span className="text-sm font-medium text-black">
-                          {op.text}
+        {!loading &&
+          currentQuestions.map((q, idx) => {
+            const qIndex = startIndex + idx;
+            return (
+              <div
+                key={qIndex}
+                className="w-full p-3 rounded-xl bg-white border-2 border-yellow-400 shadow-sm"
+              >
+                <div className="mb-2">
+                  <div className="text-base font-bold text-yellow-600 mb-1">
+                    Q{qIndex + 1}/{totalQuestions}
+                  </div>
+                  <div className="text-sm font-semibold text-black">
+                    {q.text}
+                  </div>
+                  {q.hindiText && (
+                    <div className="text-xs text-gray-700 mt-1 pl-2 border-l-4 border-yellow-400">
+                      {q.hindiText}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {q.options.map((op, oIndex) => {
+                    const selected = answers[qIndex] === oIndex;
+                    return (
+                      <label
+                        key={oIndex}
+                        className={`flex gap-2 p-3 rounded-xl cursor-pointer border ${
+                          selected
+                            ? "border-yellow-500 bg-yellow-100"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          checked={selected}
+                          onChange={() => selectOption(qIndex, oIndex)}
+                          className="accent-yellow-500 mt-1"
+                        />
+                        <span>
+                          <div className="text-sm font-medium text-black">
+                            {op.text}
+                          </div>
+                          {op.hindiText && (
+                            <div className="text-xs text-gray-700">
+                              {op.hindiText}
+                            </div>
+                          )}
                         </span>
-                        {op.hindiText && (
-                          <span className="text-xs text-gray-700">
-                            {op.hindiText}
-                          </span>
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
 
-      {/* PAGINATION BUTTONS */}
-      <div className="w-full max-w-xl flex justify-between mt-4 gap-2">
-  {currentPage > 0 && (
-    <button
-      onClick={goBack}
-      className="flex-1 px-4 py-2 rounded-full bg-gray-700 text-white text-sm
-                 cursor-pointer hover:bg-gray-600
-                 active:scale-95 transition-all duration-200"
-    >
-      Back
-    </button>
-  )}
-
-  <button
-    onClick={goNext}
-    className="flex-1 px-4 py-2 rounded-full bg-yellow-500 text-black font-bold text-sm
-               cursor-pointer hover:bg-yellow-400
-               active:scale-95 transition-all duration-200"
-  >
-    Next
-  </button>
-</div>
-
+      {/* BUTTONS */}
+      <div className="w-full max-w-xl flex gap-2 mt-4">
+        {currentPage > 0 && (
+          <button
+            onClick={goBack}
+            className="flex-1 py-2 rounded-full bg-gray-700 text-white text-sm hover:bg-gray-600"
+          >
+            Back
+          </button>
+        )}
+        <button
+          onClick={goNext}
+          className="flex-1 py-2 rounded-full bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }
