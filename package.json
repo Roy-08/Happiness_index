@@ -16,6 +16,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "fonts": "^0.0.2",
+    "framer-motion": "^12.23.26",
     "geist": "^1.5.1",
     "google-translate-api-x": "^10.7.2",
     "googleapis": "^167.0.0",
