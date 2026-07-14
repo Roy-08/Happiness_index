@@ -579,7 +579,7 @@ function generateHTMLEmail(
 
                       <!-- Instagram (RIGHT) -->
                       <td align="right" width="33%" class="social-icon-cell" style="padding:0 15px;">
-                        <a href="https://www.instagram.com/happinesswithdrvrushali/">
+                        <a href="https://www.instagram.com/happinesswithvrushali/">
                           <table cellpadding="0" cellspacing="0" role="presentation">
                             <tr>
                               <td width="50" height="50" align="center" valign="middle" 
